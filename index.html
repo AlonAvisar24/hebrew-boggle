@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hebrew Boggle</title>
+    <title>Boggle Game</title>
     <style>
         body { text-align: center; font-family: Arial, sans-serif; }
         .grid { display: grid; grid-template-columns: repeat(4, 60px); gap: 10px; justify-content: center; }
@@ -12,9 +12,13 @@
     </style>
 </head>
 <body>
-    <h1>Hebrew Boggle</h1>
+    <h1>Boggle Game</h1>
     <div class="controls">
         <button onclick="generateBoard()">Refresh</button>
+        <select id="languageSelect" onchange="generateBoard()">
+            <option value="hebrew">Hebrew</option>
+            <option value="english">English</option>
+        </select>
         <select id="timerSelect" onchange="setTimer()">
             <option value="60">1 min</option>
             <option value="120">2 min</option>
@@ -25,16 +29,19 @@
     <div class="grid" id="board"></div>
     <script>
         const hebrewLetters = "אבגדהוזחטיכלמנסעפצקרשת".split("");
+        const englishLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         let timer = 60;
         let interval;
 
         function generateBoard() {
             const board = document.getElementById("board");
+            const language = document.getElementById("languageSelect").value;
+            const letters = language === "hebrew" ? hebrewLetters : englishLetters;
             board.innerHTML = "";
             for (let i = 0; i < 16; i++) {
                 const cell = document.createElement("div");
                 cell.className = "cell";
-                cell.textContent = hebrewLetters[Math.floor(Math.random() * hebrewLetters.length)];
+                cell.textContent = letters[Math.floor(Math.random() * letters.length)];
                 board.appendChild(cell);
             }
         }
@@ -47,6 +54,7 @@
         }
 
         function startTimer() {
+            clearInterval(interval);
             interval = setInterval(() => {
                 if (timer > 0) {
                     timer--;
