@@ -1,14 +1,39 @@
 <!DOCTYPE html>
-<html lang="he">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boggle Game</title>
     <style>
         body { text-align: center; font-family: Arial, sans-serif; }
-        .grid { display: grid; grid-template-columns: repeat(4, 60px); gap: 10px; justify-content: center; }
-        .cell { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 24px; border: 1px solid black; }
-        .controls { margin: 20px; }
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 60px); 
+            gap: 10px; 
+            justify-content: center;
+            margin: 20px auto;
+        }
+        .cell { 
+            width: 60px; 
+            height: 60px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 24px; 
+            border: 1px solid black; 
+            cursor: pointer;
+            user-select: none;
+        }
+        .cell.selected {
+            background-color: #b3d9ff;
+        }
+        .controls, .words { margin: 20px; }
+        #wordList { list-style-type: none; padding: 0; }
+        #currentWord {
+            font-size: 20px;
+            margin: 10px;
+            min-height: 30px;
+        }
     </style>
 </head>
 <body>
@@ -16,8 +41,8 @@
     <div class="controls">
         <button onclick="generateBoard()">Refresh</button>
         <select id="languageSelect" onchange="generateBoard()">
+            <option value="english" selected>English</option>
             <option value="hebrew">Hebrew</option>
-            <option value="english">English</option>
         </select>
         <select id="timerSelect" onchange="setTimer()">
             <option value="60">1 min</option>
@@ -26,24 +51,171 @@
         </select>
         <p id="timerDisplay">Time: 60s</p>
     </div>
+    <div id="currentWord"></div>
     <div class="grid" id="board"></div>
+    <div class="words">
+        <button onclick="submitWord()">Submit Word</button>
+        <div id="wordList"></div>
+    </div>
     <script>
         const hebrewLetters = "אבגדהוזחטיכלמנסעפצקרשת".split("");
-        const englishLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const englishLetters = "BCDFGHJKLMNPRSTVWXYZ".split("");
+        const vowels = "AEIOU".split("");
         let timer = 60;
         let interval;
+        let boardArray = [];
+        let foundWords = {};
+        let selectedCells = [];
 
         function generateBoard() {
             const board = document.getElementById("board");
             const language = document.getElementById("languageSelect").value;
-            const letters = language === "hebrew" ? hebrewLetters : englishLetters;
+            let letters = language === "hebrew" ? hebrewLetters : englishLetters;
             board.innerHTML = "";
-            for (let i = 0; i < 16; i++) {
+            boardArray = [];
+            selectedCells = [];
+            updateCurrentWord();
+            
+            if (language === "english") {
+                let selectedVowels = [];
+                while (selectedVowels.length < 4) {
+                    let vowel = vowels[Math.floor(Math.random() * vowels.length)];
+                    if (!selectedVowels.includes(vowel)) {
+                        selectedVowels.push(vowel);
+                    }
+                }
+                
+                let remainingLetters = [];
+                for (let i = 0; i < 12; i++) {
+                    if (Math.random() < 0.1) {
+                        remainingLetters.push('Q');
+                    } else {
+                        remainingLetters.push(letters[Math.floor(Math.random() * letters.length)]);
+                    }
+                }
+                boardArray = [...selectedVowels, ...remainingLetters].sort(() => Math.random() - 0.5);
+            } else {
+                for (let i = 0; i < 16; i++) {
+                    boardArray.push(letters[Math.floor(Math.random() * letters.length)]);
+                }
+            }
+
+            boardArray.forEach((letter, index) => {
                 const cell = document.createElement("div");
                 cell.className = "cell";
-                cell.textContent = letters[Math.floor(Math.random() * letters.length)];
+                cell.textContent = letter;
+                cell.dataset.index = index;
+                cell.addEventListener('click', () => toggleCell(index));
                 board.appendChild(cell);
+            });
+
+            foundWords = {};
+            document.getElementById("wordList").innerHTML = "";
+            
+            timer = parseInt(document.getElementById("timerSelect").value);
+            document.getElementById("timerDisplay").textContent = `Time: ${timer}s`;
+            clearInterval(interval);
+            startTimer();
+        }
+
+        function toggleCell(index) {
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            const cellIndex = selectedCells.indexOf(index);
+            
+            if (cellIndex === -1) {
+                // Add cell
+                selectedCells.push(index);
+                cell.classList.add('selected');
+            } else {
+                // Remove cell and all cells after it
+                selectedCells = selectedCells.slice(0, cellIndex);
+                document.querySelectorAll('.cell').forEach((cell, idx) => {
+                    if (!selectedCells.includes(idx)) {
+                        cell.classList.remove('selected');
+                    }
+                });
             }
+            updateCurrentWord();
+        }
+
+        function isAdjacent(index1, index2) {
+            const row1 = Math.floor(index1 / 4);
+            const col1 = index1 % 4;
+            const row2 = Math.floor(index2 / 4);
+            const col2 = index2 % 4;
+            
+            return Math.abs(row1 - row2) <= 1 && Math.abs(col1 - col2) <= 1;
+        }
+
+        function isValidPath() {
+            if (selectedCells.length < 2) return true;
+            
+            // Create a set of cells we've confirmed are connected
+            let connectedCells = new Set([selectedCells[0]]);
+            let cellsToCheck = new Set(selectedCells);
+            cellsToCheck.delete(selectedCells[0]);
+            
+            // Keep expanding our connected set until we can't add any more cells
+            let foundNew;
+            do {
+                foundNew = false;
+                for (let cell of cellsToCheck) {
+                    // Check if this cell is adjacent to any cell in our connected set
+                    for (let connectedCell of connectedCells) {
+                        if (isAdjacent(cell, connectedCell)) {
+                            connectedCells.add(cell);
+                            cellsToCheck.delete(cell);
+                            foundNew = true;
+                            break;
+                        }
+                    }
+                }
+            } while (foundNew && cellsToCheck.size > 0);
+            
+            // If cellsToCheck is empty, all cells were connected
+            return cellsToCheck.size === 0;
+        }
+
+        function updateCurrentWord() {
+            const word = selectedCells.map(index => {
+                let letter = boardArray[index];
+                return letter === 'Q' ? 'QU' : letter;
+            }).join('');
+            document.getElementById('currentWord').textContent = word;
+        }
+
+        function submitWord() {
+            if (selectedCells.length < 3) {
+                alert("Word must be at least 3 letters long!");
+                return;
+            }
+            
+            if (!isValidPath()) {
+                alert("Letters must be connected!");
+                return;
+            }
+            
+            let word = selectedCells.map(index => {
+                let letter = boardArray[index];
+                return letter === 'Q' ? 'QU' : letter;
+            }).join('');
+            
+            if (!foundWords[word]) {
+                const score = calculateScore(word);
+                foundWords[word] = score;
+                const wordList = document.getElementById("wordList");
+                const div = document.createElement("div");
+                div.textContent = `${word} - ${score} points`;
+                wordList.appendChild(div);
+            }
+            
+            // Clear selections
+            selectedCells.forEach(index => {
+                const cell = document.querySelector(`[data-index="${index}"]`);
+                cell.classList.remove('selected');
+            });
+            selectedCells = [];
+            updateCurrentWord();
         }
 
         function setTimer() {
@@ -61,13 +233,33 @@
                     document.getElementById("timerDisplay").textContent = `Time: ${timer}s`;
                 } else {
                     clearInterval(interval);
-                    alert("Time's up!");
+                    endGame();
                 }
             }, 1000);
         }
 
+        function calculateScore(word) {
+            const adjustedLength = word.replace('QU', 'Q').length;
+            return Math.max(1, adjustedLength - 2);
+        }
+
+        function endGame() {
+            let totalScore = Object.values(foundWords).reduce((acc, val) => acc + val, 0);
+            const message = `Time's up!\nYour total score is: ${totalScore}\n\nWords found:\n` + 
+                Object.entries(foundWords).map(([word, score]) => `${word} - ${score} points`).join("\n");
+            setTimeout(() => alert(message), 100);
+        }
+
+        // Initialize the game
         generateBoard();
         startTimer();
+
+        // Add keyboard support for submit
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                submitWord();
+            }
+        });
     </script>
 </body>
 </html>
