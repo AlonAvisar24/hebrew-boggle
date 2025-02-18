@@ -1,265 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Boggle Game</title>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(4, 60px); 
-            gap: 10px; 
-            justify-content: center;
-            margin: 20px auto;
-        }
-        .cell { 
-            width: 60px; 
-            height: 60px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 24px; 
-            border: 1px solid black; 
-            cursor: pointer;
-            user-select: none;
-        }
-        .cell.selected {
-            background-color: #b3d9ff;
-        }
-        .controls, .words { margin: 20px; }
-        #wordList { list-style-type: none; padding: 0; }
-        #currentWord {
-            font-size: 20px;
-            margin: 10px;
-            min-height: 30px;
-        }
+      body {
+        text-align: center;
+        font-family: Arial, sans-serif;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 60px);
+        gap: 10px;
+        justify-content: center;
+        margin: 20px auto;
+      }
+      .cell {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        border: 1px solid black;
+        cursor: pointer;
+        user-select: none;
+      }
+      .cell.selected {
+        background-color: #b3d9ff;
+      }
+      .controls,
+      .words {
+        margin: 20px;
+      }
+      #wordList {
+        list-style-type: none;
+        padding: 0;
+      }
+      #currentWord {
+        font-size: 20px;
+        margin: 10px;
+        min-height: 30px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Boggle Game</h1>
     <div class="controls">
-        <button onclick="generateBoard()">Refresh</button>
-        <select id="languageSelect" onchange="generateBoard()">
-            <option value="english" selected>English</option>
-            <option value="hebrew">Hebrew</option>
-        </select>
-        <select id="timerSelect" onchange="setTimer()">
-            <option value="60">1 min</option>
-            <option value="120">2 min</option>
-            <option value="180">3 min</option>
-        </select>
-        <p id="timerDisplay">Time: 60s</p>
+      <button onclick="generateBoard()">Refresh</button>
+      <select id="languageSelect" onchange="generateBoard()">
+        <option value="english" selected>English</option>
+        <option value="hebrew">Hebrew</option>
+      </select>
+      <select id="timerSelect" onchange="setTimer()">
+        <option value="60">1 min</option>
+        <option value="120">2 min</option>
+        <option value="180">3 min</option>
+      </select>
+      <p id="timerDisplay">Time: 60s</p>
     </div>
     <div id="currentWord"></div>
     <div class="grid" id="board"></div>
     <div class="words">
-        <button onclick="submitWord()">Submit Word</button>
-        <div id="wordList"></div>
+      <button onclick="submitWord()">Submit Word</button>
+      <div id="wordList"></div>
     </div>
     <script>
-        const hebrewLetters = "אבגדהוזחטיכלמנסעפצקרשת".split("");
-        const englishLetters = "BCDFGHJKLMNPRSTVWXYZ".split("");
-        const vowels = "AEIOU".split("");
-        let timer = 60;
-        let interval;
-        let boardArray = [];
-        let foundWords = {};
-        let selectedCells = [];
+      const hebrewLetters = "אבגדהוזחטיכלמנסעפצקרשת".split("");
+      const BOGGLE_DICE = [
+        ["A", "A", "E", "E", "G", "N"],
+        ["A", "B", "B", "J", "O", "O"],
+        ["A", "C", "H", "O", "P", "S"],
+        ["A", "F", "F", "K", "P", "S"],
+        ["A", "O", "O", "T", "T", "W"],
+        ["C", "I", "M", "O", "T", "U"],
+        ["D", "E", "I", "L", "R", "X"],
+        ["D", "E", "L", "R", "V", "Y"],
+        ["D", "I", "S", "T", "T", "Y"],
+        ["E", "E", "G", "H", "N", "W"],
+        ["E", "E", "I", "N", "S", "U"],
+        ["E", "H", "R", "T", "V", "W"],
+        ["E", "I", "O", "S", "S", "T"],
+        ["E", "L", "R", "T", "T", "Y"],
+        ["H", "I", "M", "N", "U", "QU"],
+        ["H", "L", "N", "N", "R", "Z"],
+      ];
+      let timer = 60;
+      let interval;
+      let boardArray = [];
+      let foundWords = {};
+      let selectedCells = [];
 
-        function generateBoard() {
-            const board = document.getElementById("board");
-            const language = document.getElementById("languageSelect").value;
-            let letters = language === "hebrew" ? hebrewLetters : englishLetters;
-            board.innerHTML = "";
-            boardArray = [];
-            selectedCells = [];
-            updateCurrentWord();
-            
-            if (language === "english") {
-                let selectedVowels = [];
-                while (selectedVowels.length < 4) {
-                    let vowel = vowels[Math.floor(Math.random() * vowels.length)];
-                    if (!selectedVowels.includes(vowel)) {
-                        selectedVowels.push(vowel);
-                    }
-                }
-                
-                let remainingLetters = [];
-                for (let i = 0; i < 12; i++) {
-                    if (Math.random() < 0.1) {
-                        remainingLetters.push('Q');
-                    } else {
-                        remainingLetters.push(letters[Math.floor(Math.random() * letters.length)]);
-                    }
-                }
-                boardArray = [...selectedVowels, ...remainingLetters].sort(() => Math.random() - 0.5);
-            } else {
-                for (let i = 0; i < 16; i++) {
-                    boardArray.push(letters[Math.floor(Math.random() * letters.length)]);
-                }
-            }
+      function generateBoard() {
+        const board = document.getElementById("board");
+        const language = document.getElementById("languageSelect").value;
+        board.innerHTML = "";
+        boardArray = [];
+        selectedCells = [];
 
-            boardArray.forEach((letter, index) => {
-                const cell = document.createElement("div");
-                cell.className = "cell";
-                cell.textContent = letter;
-                cell.dataset.index = index;
-                cell.addEventListener('click', () => toggleCell(index));
-                board.appendChild(cell);
-            });
-
-            foundWords = {};
-            document.getElementById("wordList").innerHTML = "";
-            
-            timer = parseInt(document.getElementById("timerSelect").value);
-            document.getElementById("timerDisplay").textContent = `Time: ${timer}s`;
-            clearInterval(interval);
-            startTimer();
+        if (language === "english") {
+          // Shuffle the dice array and select one face from each die
+          const shuffledDice = [...BOGGLE_DICE]
+            .sort(() => Math.random() - 0.5)
+            .map((die) => die[Math.floor(Math.random() * die.length)]);
+          boardArray = shuffledDice;
+        } else {
+          for (let i = 0; i < 16; i++) {
+            boardArray.push(
+              hebrewLetters[Math.floor(Math.random() * hebrewLetters.length)]
+            );
+          }
         }
 
-        function toggleCell(index) {
-            const cell = document.querySelector(`[data-index="${index}"]`);
-            const cellIndex = selectedCells.indexOf(index);
-            
-            if (cellIndex === -1) {
-                // Add cell
-                selectedCells.push(index);
-                cell.classList.add('selected');
-            } else {
-                // Remove cell and all cells after it
-                selectedCells = selectedCells.slice(0, cellIndex);
-                document.querySelectorAll('.cell').forEach((cell, idx) => {
-                    if (!selectedCells.includes(idx)) {
-                        cell.classList.remove('selected');
-                    }
-                });
-            }
-            updateCurrentWord();
-        }
-
-        function isAdjacent(index1, index2) {
-            const row1 = Math.floor(index1 / 4);
-            const col1 = index1 % 4;
-            const row2 = Math.floor(index2 / 4);
-            const col2 = index2 % 4;
-            
-            return Math.abs(row1 - row2) <= 1 && Math.abs(col1 - col2) <= 1;
-        }
-
-        function isValidPath() {
-            if (selectedCells.length < 2) return true;
-            
-            // Create a set of cells we've confirmed are connected
-            let connectedCells = new Set([selectedCells[0]]);
-            let cellsToCheck = new Set(selectedCells);
-            cellsToCheck.delete(selectedCells[0]);
-            
-            // Keep expanding our connected set until we can't add any more cells
-            let foundNew;
-            do {
-                foundNew = false;
-                for (let cell of cellsToCheck) {
-                    // Check if this cell is adjacent to any cell in our connected set
-                    for (let connectedCell of connectedCells) {
-                        if (isAdjacent(cell, connectedCell)) {
-                            connectedCells.add(cell);
-                            cellsToCheck.delete(cell);
-                            foundNew = true;
-                            break;
-                        }
-                    }
-                }
-            } while (foundNew && cellsToCheck.size > 0);
-            
-            // If cellsToCheck is empty, all cells were connected
-            return cellsToCheck.size === 0;
-        }
-
-        function updateCurrentWord() {
-            const word = selectedCells.map(index => {
-                let letter = boardArray[index];
-                return letter === 'Q' ? 'QU' : letter;
-            }).join('');
-            document.getElementById('currentWord').textContent = word;
-        }
-
-        function submitWord() {
-            if (selectedCells.length < 3) {
-                alert("Word must be at least 3 letters long!");
-                return;
-            }
-            
-            if (!isValidPath()) {
-                alert("Letters must be connected!");
-                return;
-            }
-            
-            let word = selectedCells.map(index => {
-                let letter = boardArray[index];
-                return letter === 'Q' ? 'QU' : letter;
-            }).join('');
-            
-            if (!foundWords[word]) {
-                const score = calculateScore(word);
-                foundWords[word] = score;
-                const wordList = document.getElementById("wordList");
-                const div = document.createElement("div");
-                div.textContent = `${word} - ${score} points`;
-                wordList.appendChild(div);
-            }
-            
-            // Clear selections
-            selectedCells.forEach(index => {
-                const cell = document.querySelector(`[data-index="${index}"]`);
-                cell.classList.remove('selected');
-            });
-            selectedCells = [];
-            updateCurrentWord();
-        }
-
-        function setTimer() {
-            timer = parseInt(document.getElementById("timerSelect").value);
-            document.getElementById("timerDisplay").textContent = `Time: ${timer}s`;
-            clearInterval(interval);
-            startTimer();
-        }
-
-        function startTimer() {
-            clearInterval(interval);
-            interval = setInterval(() => {
-                if (timer > 0) {
-                    timer--;
-                    document.getElementById("timerDisplay").textContent = `Time: ${timer}s`;
-                } else {
-                    clearInterval(interval);
-                    endGame();
-                }
-            }, 1000);
-        }
-
-        function calculateScore(word) {
-            const adjustedLength = word.replace('QU', 'Q').length;
-            return Math.max(1, adjustedLength - 2);
-        }
-
-        function endGame() {
-            let totalScore = Object.values(foundWords).reduce((acc, val) => acc + val, 0);
-            const message = `Time's up!\nYour total score is: ${totalScore}\n\nWords found:\n` + 
-                Object.entries(foundWords).map(([word, score]) => `${word} - ${score} points`).join("\n");
-            setTimeout(() => alert(message), 100);
-        }
-
-        // Initialize the game
-        generateBoard();
-        startTimer();
-
-        // Add keyboard support for submit
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                submitWord();
-            }
+        boardArray.forEach((letter, index) => {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.textContent = letter;
+          cell.dataset.index = index;
+          cell.addEventListener("click", () => toggleCell(index));
+          board.appendChild(cell);
         });
+
+        foundWords = {};
+        document.getElementById("wordList").innerHTML = "";
+
+        timer = parseInt(document.getElementById("timerSelect").value);
+        document.getElementById("timerDisplay").textContent = `Time: ${timer}s`;
+        clearInterval(interval);
+        startTimer();
+      }
+
+      function toggleCell(index) {
+        const cell = document.querySelector(`[data-index="${index}"]`);
+        const cellIndex = selectedCells.indexOf(index);
+
+        if (cellIndex === -1) {
+          // Add cell
+          selectedCells.push(index);
+          cell.classList.add("selected");
+        } else {
+          // Remove cell and all cells after it
+          selectedCells = selectedCells.slice(0, cellIndex);
+          document.querySelectorAll(".cell").forEach((cell, idx) => {
+            if (!selectedCells.includes(idx)) {
+              cell.classList.remove("selected");
+            }
+          });
+        }
+        updateCurrentWord();
+      }
+
+      function isAdjacent(index1, index2) {
+        const row1 = Math.floor(index1 / 4);
+        const col1 = index1 % 4;
+        const row2 = Math.floor(index2 / 4);
+        const col2 = index2 % 4;
+
+        return Math.abs(row1 - row2) <= 1 && Math.abs(col1 - col2) <= 1;
+      }
+
+      function isValidPath() {
+        if (selectedCells.length < 2) return true;
+
+        // Create a set of cells we've confirmed are connected
+        let connectedCells = new Set([selectedCells[0]]);
+        let cellsToCheck = new Set(selectedCells);
+        cellsToCheck.delete(selectedCells[0]);
+
+        // Keep expanding our connected set until we can't add any more cells
+        let foundNew;
+        do {
+          foundNew = false;
+          for (let cell of cellsToCheck) {
+            // Check if this cell is adjacent to any cell in our connected set
+            for (let connectedCell of connectedCells) {
+              if (isAdjacent(cell, connectedCell)) {
+                connectedCells.add(cell);
+                cellsToCheck.delete(cell);
+                foundNew = true;
+                break;
+              }
+            }
+          }
+        } while (foundNew && cellsToCheck.size > 0);
+
+        // If cellsToCheck is empty, all cells were connected
+        return cellsToCheck.size === 0;
+      }
+
+      function updateCurrentWord() {
+        const word = selectedCells
+          .map((index) => {
+            let letter = boardArray[index];
+            return letter === "Q" ? "QU" : letter;
+          })
+          .join("");
+        document.getElementById("currentWord").textContent = word;
+      }
+
+      async function isValidWord(word) {
+        try {
+          const response = await fetch(
+            `https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`
+          );
+          const data = await response.json(); // Parse the response body to JSON
+
+          // Check if the response contains "No Definitions Found"
+          if (data.title && data.title === "No Definitions Found") {
+            return false;
+          }
+          return true; // Valid word if it doesn't match the "No Definitions Found" title
+        } catch (error) {
+          console.error("Error checking word:", error);
+          return false;
+        }
+      }
+
+      async function submitWord() {
+        if (selectedCells.length < 3) {
+          alert("Word must be at least 3 letters long!");
+          return;
+        }
+
+        if (!isValidPath()) {
+          alert("Letters must be connected!");
+          return;
+        }
+
+        let word = selectedCells
+          .map((index) => {
+            let letter = boardArray[index];
+            return letter;
+          })
+          .join("");
+
+        // Check if the word is valid using the API
+        const valid = await isValidWord(word);
+        if (!valid) {
+          alert("Not a valid word!");
+          return;
+        }
+
+        // If the word is valid, continue processing it
+        if (!foundWords[word]) {
+          const score = calculateScore(word);
+          foundWords[word] = score;
+          const wordList = document.getElementById("wordList");
+          const div = document.createElement("div");
+          div.textContent = `${word} - ${score} points`;
+          wordList.appendChild(div);
+        }
+
+        // Clear selections
+        selectedCells.forEach((index) => {
+          const cell = document.querySelector(`[data-index="${index}"]`);
+          cell.classList.remove("selected");
+        });
+        selectedCells = [];
+        updateCurrentWord();
+      }
+
+      function setTimer() {
+        timer = parseInt(document.getElementById("timerSelect").value);
+        document.getElementById("timerDisplay").textContent = `Time: ${timer}s`;
+        clearInterval(interval);
+        startTimer();
+      }
+
+      function startTimer() {
+        clearInterval(interval);
+        interval = setInterval(() => {
+          if (timer > 0) {
+            timer--;
+            document.getElementById(
+              "timerDisplay"
+            ).textContent = `Time: ${timer}s`;
+          } else {
+            clearInterval(interval);
+            endGame();
+          }
+        }, 1000);
+      }
+
+      function calculateScore(word) {
+        const adjustedLength = word.replace("QU", "Q").length;
+        return Math.max(1, adjustedLength - 2);
+      }
+
+      function endGame() {
+        let totalScore = Object.values(foundWords).reduce(
+          (acc, val) => acc + val,
+          0
+        );
+        const message =
+          `Time's up!\nYour total score is: ${totalScore}\n\nWords found:\n` +
+          Object.entries(foundWords)
+            .map(([word, score]) => `${word} - ${score} points`)
+            .join("\n");
+        setTimeout(() => alert(message), 100);
+      }
+
+      // Initialize the game
+      generateBoard();
+      startTimer();
+
+      // Add keyboard support for submit
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          submitWord();
+        }
+      });
     </script>
-</body>
+  </body>
 </html>
