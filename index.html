@@ -67,7 +67,24 @@
       <div id="wordList"></div>
     </div>
     <script>
-      const hebrewLetters = "אבגדהוזחטיכלמנסעפצקרשת".split("");
+      const HEBREW_BOGGLE_DICE = [
+        ["א", "ה", "ל", "ת", "י", "ו"], // High-frequency vowels and common letters
+        ["ב", "ג", "ד", "כ", "פ", "ר"], // Common consonants
+        ["ה", "ח", "י", "מ", "נ", "ת"], // Mixed common letters
+        ["ו", "ז", "ל", "ס", "ק", "ש"], // More consonants
+        ["א", "ב", "ה", "ל", "מ", "ר"], // Common word-starting letters
+        ["י", "כ", "נ", "ע", "פ", "ת"], // Mixed frequency
+        ["ב", "ה", "ו", "י", "ס", "ש"], // Vowels and common letters
+        ["א", "ד", "ל", "מ", "ת", "ר"], // Common word-ending letters
+        ["ג", "ז", "ח", "ק", "ש", "ת"], // Less common but important
+        ["ב", "ה", "י", "נ", "פ", "ר"], // Mixed common letters
+        ["א", "ו", "ל", "מ", "ס", "ת"], // Common combination letters
+        ["ד", "ה", "י", "כ", "ע", "ש"], // Mixed frequency
+        ["ב", "ח", "ל", "נ", "צ", "ר"], // Including some less common
+        ["א", "ו", "י", "מ", "ס", "ת"], // More vowels and common letters
+        ["ג", "ה", "כ", "פ", "ק", "ש"], // Mixed frequency
+        ["ב", "ד", "ל", "נ", "ר", "ת"], // Common word-building letters
+      ];
       const BOGGLE_DICE = [
         ["A", "A", "E", "E", "G", "N"],
         ["A", "B", "B", "J", "O", "O"],
@@ -100,17 +117,17 @@
         selectedCells = [];
 
         if (language === "english") {
-          // Shuffle the dice array and select one face from each die
+          // Original English dice logic
           const shuffledDice = [...BOGGLE_DICE]
             .sort(() => Math.random() - 0.5)
             .map((die) => die[Math.floor(Math.random() * die.length)]);
           boardArray = shuffledDice;
         } else {
-          for (let i = 0; i < 16; i++) {
-            boardArray.push(
-              hebrewLetters[Math.floor(Math.random() * hebrewLetters.length)]
-            );
-          }
+          // New Hebrew dice logic
+          const shuffledDice = [...HEBREW_BOGGLE_DICE]
+            .sort(() => Math.random() - 0.5)
+            .map((die) => die[Math.floor(Math.random() * die.length)]);
+          boardArray = shuffledDice;
         }
 
         boardArray.forEach((letter, index) => {
@@ -202,26 +219,36 @@
       async function isValidWord(word) {
         const language = document.getElementById("languageSelect").value;
 
-        // If the selected language is Hebrew, consider all words valid
-        if (language === "hebrew") {
-          return true;
-        }
-
-        try {
-          const response = await fetch(
-            `https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`
-          );
-          const data = await response.json();
-
-          // Check if the response contains "No Definitions Found"
-          if (data.title && data.title === "No Definitions Found") {
+        if (language === "english") {
+          try {
+            const response = await fetch(
+              `https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`
+            );
+            const data = await response.json();
+            return !data.title || data.title !== "No Definitions Found";
+          } catch (error) {
+            console.error("Error checking English word:", error);
             return false;
           }
-          return true;
-        } catch (error) {
-          console.error("Error checking word:", error);
-          return false;
+        } else if (language === "hebrew") {
+          try {
+            // First check if word is long enough
+            if (word.length < 3) return false;
+
+            // Make request to our proxy server instead of directly to Milog
+            const response = await fetch(
+              `http://localhost:3000/validate-hebrew/${word}`
+            );
+            const data = await response.json();
+
+            // Return the isValid property from our proxy response
+            return data.isValid;
+          } catch (error) {
+            console.error("Error checking Hebrew word:", error);
+            return false;
+          }
         }
+        return false;
       }
 
       async function submitWord() {
